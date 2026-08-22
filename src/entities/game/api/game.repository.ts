@@ -45,10 +45,9 @@ export async function saveScrapedGame(
           developer: data.developer,
           description: data.description,
           videoUrl: data.videoUrl,
-          criticSummary:
-            data.criticSummary ?? existing[0].criticSummary,
-          userSummary:
-            data.userSummary ?? existing[0].userSummary,
+          criticSummary: data.criticSummary,
+userSummary:
+  data.userSummary ?? existing[0].userSummary,
         })
         .where(eq(games.id, gameId));
     } else {

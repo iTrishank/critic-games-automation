@@ -20,7 +20,7 @@ export async function generateSummary(
   reviews: string[],
 ): Promise<string> {
   if (reviews.length === 0) {
-    return "No reviews available";
+    return "";
   }
 
   const reviewText = reviews

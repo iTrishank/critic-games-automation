@@ -77,9 +77,12 @@ export async function processGames() {
           },
         );
 
-        const criticSummary = await generateSummary(
-  game.criticReviews.map((review) => review.text),
-);
+        const criticSummary =
+  game.criticReviews.length > 0
+    ? await generateSummary(
+        game.criticReviews.map((review) => review.text),
+      )
+    : null;
 
 await saveScrapedGame({
   name: game.name,
