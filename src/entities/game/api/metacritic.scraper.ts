@@ -8,12 +8,21 @@ import type {
 
 const METACRITIC_BASE_URL = "https://www.metacritic.com";
 
+const PLATFORM_PATTERN =
+  /^(PC|PlayStation 5|PlayStation 4|Xbox Series X|Xbox One|Nintendo Switch|Nintendo Switch 2|PS5|PS4|iOS|Android)$/i;
+
+const DATE_PATTERN = /^[A-Z]{3} \d{1,2}, \d{4}$/;
+
 function parseScore(value: string | null): number | null {
-  if (!value) return null;
+  if (!value) {
+    return null;
+  }
 
   const normalized = value.trim().toLowerCase();
 
-  if (normalized === "tbd") return null;
+  if (normalized === "tbd") {
+    return null;
+  }
 
   const score = Number(normalized);
 
@@ -64,13 +73,21 @@ async function scrapeScores(
   let metascore: number | null = null;
   let userscore: number | null = null;
 
-  for (let i = 0; i < await cards.count(); i++) {
+  const count = await cards.count();
+
+  for (let i = 0; i < count; i++) {
     const card = cards.nth(i);
 
+    const headerLocator = card.locator(
+      '[data-testid="global-score-header"]',
+    );
+
+    if (!(await headerLocator.count())) {
+      continue;
+    }
+
     const header = (
-      await card
-        .locator('[data-testid="global-score-header"]')
-        .innerText()
+      await headerLocator.innerText()
     )
       .trim()
       .toLowerCase();
@@ -83,10 +100,13 @@ async function scrapeScores(
       '[data-testid="global-score-tbd"]',
     );
 
-    const scoreText =
-      (await value.count())
-        ? await value.textContent()
-        : await tbd.textContent();
+    let scoreText: string | null = null;
+
+    if (await value.count()) {
+      scoreText = await value.textContent();
+    } else if (await tbd.count()) {
+      scoreText = await tbd.textContent();
+    }
 
     if (header === "metascore") {
       metascore = parseScore(scoreText);
@@ -124,7 +144,57 @@ async function scrapeVideoUrl(
   const video = page.locator("video").first();
 
   if (await video.count()) {
-    return video.getAttribute("src");
+    const src = await video.getAttribute("src");
+
+    if (src && !src.startsWith("/browse/")) {
+      return src;
+    }
+  }
+
+  const source = page
+    .locator("video source")
+    .first();
+
+  if (await source.count()) {
+    const src = await source.getAttribute("src");
+
+    if (src && !src.startsWith("/browse/")) {
+      return src;
+    }
+  }
+
+  return null;
+}
+
+async function extractReviewLines(
+  element: HTMLElement,
+): Promise<string[] | null> {
+  let current: HTMLElement | null =
+    element.parentElement;
+
+  while (current) {
+    const lines = (current.innerText ?? "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const dateIndex = lines.findIndex((line) =>
+      /^[A-Z]{3} \d{1,2}, \d{4}$/.test(line),
+    );
+
+    const hasRating = lines.some((line) =>
+      /^\d{1,3}$/.test(line),
+    );
+
+    if (
+      dateIndex !== -1 &&
+      lines.length >= 5 &&
+      hasRating
+    ) {
+      return lines;
+    }
+
+    current = current.parentElement;
   }
 
   return null;
@@ -139,55 +209,40 @@ async function scrapeCriticReviews(
   try {
     await page.goto(criticUrl, {
       waitUntil: "domcontentloaded",
+      timeout: 30000,
     });
 
     await page.waitForTimeout(1000);
 
     const reviews: ScrapedReview[] = [];
 
-    const reviewButtons = page.getByText("FULL REVIEW", {
-      exact: true,
-    });
+    const reviewButtons = page.getByText(
+      "FULL REVIEW",
+      {
+        exact: true,
+      },
+    );
 
     const count = await reviewButtons.count();
 
     for (let i = 0; i < count; i++) {
       const button = reviewButtons.nth(i);
 
-      const lines = await button.evaluate((element) => {
-        let current: HTMLElement | null =
-          element.parentElement;
-
-        while (current) {
-          const lines = (current.innerText ?? "")
-            .split("\n")
-            .map((line) => line.trim())
-            .filter(Boolean);
-
-          const dateIndex = lines.findIndex((line) =>
-            /^[A-Z]{3} \d{1,2}, \d{4}$/.test(line),
-          );
-
-          if (
-            dateIndex !== -1 &&
-            lines.some((line) => /^\d{1,3}$/.test(line))
-          ) {
-            return lines;
-          }
-
-          current = current.parentElement;
-        }
-
-        return null;
-      });
-
-      if (!lines) continue;
-
-      const dateIndex = lines.findIndex((line) =>
-        /^[A-Z]{3} \d{1,2}, \d{4}$/.test(line),
+      const lines = await button.evaluate(
+        extractReviewLines,
       );
 
-      if (dateIndex === -1) continue;
+      if (!lines) {
+        continue;
+      }
+
+      const dateIndex = lines.findIndex((line) =>
+        DATE_PATTERN.test(line),
+      );
+
+      if (dateIndex === -1) {
+        continue;
+      }
 
       const ratingIndex = lines.findIndex(
         (line, index) =>
@@ -195,9 +250,13 @@ async function scrapeCriticReviews(
           /^\d{1,3}$/.test(line),
       );
 
-      if (ratingIndex === -1) continue;
+      if (ratingIndex === -1) {
+        continue;
+      }
 
-      const rating = Number(lines[ratingIndex]);
+      const rating = Number(
+        lines[ratingIndex],
+      );
 
       const publication =
         lines[ratingIndex + 1] ?? "";
@@ -205,9 +264,7 @@ async function scrapeCriticReviews(
       const platformIndex = lines.findIndex(
         (line, index) =>
           index > ratingIndex &&
-          /^(PC|PlayStation 5|PlayStation 4|Xbox Series X|Xbox One|Nintendo Switch|Nintendo Switch 2|PS5|PS4)$/i.test(
-            line,
-          ),
+          PLATFORM_PATTERN.test(line),
       );
 
       const platform =
@@ -221,13 +278,19 @@ async function scrapeCriticReviews(
           : platformIndex;
 
       const text = lines
-  .slice(ratingIndex + 2, textEnd)
-  .filter((line) => line !== "FULL REVIEW")
-  .join(" ")
-  .replace(/\s*Read More\s*$/i, "")
-  .trim();
+        .slice(ratingIndex + 2, textEnd)
+        .filter(
+          (line) =>
+            line !== "FULL REVIEW" &&
+            line !== "Read More",
+        )
+        .join(" ")
+        .replace(/\s*Read More\s*$/i, "")
+        .trim();
 
-      if (!publication || !text) continue;
+      if (!publication || !text) {
+        continue;
+      }
 
       reviews.push({
         rating,
@@ -242,6 +305,7 @@ async function scrapeCriticReviews(
   } finally {
     await page.goto(originalUrl, {
       waitUntil: "domcontentloaded",
+      timeout: 30000,
     });
   }
 }
@@ -259,7 +323,119 @@ async function scrapeUserReviews(
     return [];
   }
 
-  return [];
+  const lines = body
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const reviews: ScrapedReview[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i] !== "REPORT") {
+      continue;
+    }
+
+    let dateIndex = -1;
+
+    for (
+      let j = i - 1;
+      j >= Math.max(0, i - 30);
+      j--
+    ) {
+      if (
+        /^[A-Z]{3} \d{1,2}, \d{4}$/.test(
+          lines[j],
+        )
+      ) {
+        dateIndex = j;
+        break;
+      }
+    }
+
+    if (dateIndex === -1) {
+      continue;
+    }
+
+    const ratingIndex = dateIndex + 1;
+
+    if (
+      !/^\d{1,3}$/.test(
+        lines[ratingIndex] ?? "",
+      )
+    ) {
+      continue;
+    }
+
+    const rating = Number(
+      lines[ratingIndex],
+    );
+
+    if (
+      rating < 0 ||
+      rating > 100
+    ) {
+      continue;
+    }
+
+    const username =
+      lines[ratingIndex + 1] ?? "";
+
+    if (!username) {
+      continue;
+    }
+
+    const contentStart =
+      ratingIndex + 2;
+
+    const contentEnd = i;
+
+    const contentLines = lines.slice(
+      contentStart,
+      contentEnd,
+    );
+
+    let platform: string | null = null;
+
+    if (contentLines.length > 0) {
+      const lastLine =
+        contentLines[
+          contentLines.length - 1
+        ];
+
+      if (
+        /^(PC|PlayStation 5|PlayStation 4|Xbox Series X|Xbox One|Nintendo Switch|Nintendo Switch 2|PS5|PS4|iOS|Android)$/i.test(
+          lastLine,
+        )
+      ) {
+        platform = lastLine;
+        contentLines.pop();
+      }
+    }
+
+    const text = contentLines
+      .filter(
+        (line) =>
+          line !== "Read More" &&
+          line !== "FULL REVIEW",
+      )
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!text) {
+      continue;
+    }
+
+    reviews.push({
+      rating,
+      publication: username,
+      date: lines[dateIndex],
+      text,
+      platform,
+    });
+  }
+
+  return reviews;
 }
 
 export async function createMetacriticBrowser(): Promise<Browser> {
@@ -278,6 +454,7 @@ export async function scrapeGame(
   try {
     await page.goto(url, {
       waitUntil: "domcontentloaded",
+      timeout: 30000,
     });
 
     await page.waitForTimeout(1000);
@@ -291,11 +468,11 @@ export async function scrapeGame(
     const slug = slugFromUrl(url);
 
     const developerText = await page
-  .locator("text=Developer:")
-  .first()
-  .locator("..")
-  .innerText()
-  .catch(() => null);
+      .locator("text=Developer:")
+      .first()
+      .locator("..")
+      .innerText()
+      .catch(() => null);
 
     const developer =
       developerText
@@ -330,26 +507,39 @@ export async function scrapeGame(
 
     const videoUrl = await scrapeVideoUrl(page);
 
+    /*
+     * Critic reviews are only available when
+     * Metacritic exposes the review-count link.
+     *
+     * For games with no critic reviews, we return [].
+     */
+    let criticReviews: ScrapedReview[] = [];
+
     const criticLink = page.locator(
-  'a[data-testid="global-score-review-count-link"]',
-);
-
-let criticReviews: ScrapedReview[] = [];
-
-if (await criticLink.count()) {
-  const criticHref = await criticLink.first().getAttribute("href");
-
-  if (criticHref) {
-    criticReviews = await scrapeCriticReviews(
-      page,
-      new URL(
-        criticHref,
-        METACRITIC_BASE_URL,
-      ).href,
+      'a[data-testid="global-score-review-count-link"]',
     );
-  }
-}
 
+    if (await criticLink.count()) {
+      const criticHref =
+        await criticLink
+          .first()
+          .getAttribute("href");
+
+      if (criticHref) {
+        criticReviews =
+          await scrapeCriticReviews(
+            page,
+            new URL(
+              criticHref,
+              METACRITIC_BASE_URL,
+            ).href,
+          );
+      }
+    }
+
+    /*
+     * User reviews are scraped from the game page.
+     */
     const userReviews =
       await scrapeUserReviews(page);
 

@@ -24,12 +24,31 @@ async function main() {
       `User reviews available: ${scraped.userReviews.length}`,
     );
 
-    const criticSummary = await generateSummary(
-      scraped.criticReviews.map((review) => review.text),
-    );
+    const criticSummary =
+      scraped.criticReviews.length > 0
+        ? await generateSummary(
+            scraped.criticReviews.map(
+              (review) => review.text,
+            ),
+            "critic",
+          )
+        : null;
+
+    const userSummary =
+      scraped.userReviews.length > 0
+        ? await generateSummary(
+            scraped.userReviews.map(
+              (review) => review.text,
+            ),
+            "user",
+          )
+        : null;
 
     console.log("\nGenerated critic summary:");
     console.log(criticSummary);
+
+    console.log("\nGenerated user summary:");
+    console.log(userSummary);
 
     const saved = await saveScrapedGame({
       name: scraped.name,
@@ -39,6 +58,7 @@ async function main() {
       description: scraped.description,
       videoUrl: scraped.videoUrl,
       criticSummary,
+      userSummary,
       platforms: scraped.platforms,
     });
 

@@ -12,28 +12,87 @@ async function main() {
   const url =
     "https://www.metacritic.com/game/mortal-shell-ii/";
 
-  await page.goto(url, {
-    waitUntil: "domcontentloaded",
-  });
+  try {
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+    });
 
-  await page.waitForTimeout(3000);
+    await page.waitForTimeout(3000);
 
-  console.log("Title:", await page.title());
-  console.log("URL:", page.url());
+    console.log("Title:", await page.title());
+    console.log("URL:", page.url());
 
-  const text = await page.locator("body").innerText();
+    const report = page
+      .getByText("REPORT", {
+        exact: true,
+      })
+      .first();
 
-  console.log("\n--- PAGE TEXT ---\n");
-  console.log(text.slice(0, 12000));
+    console.log(
+      "\nREPORT count:",
+      await report.count(),
+    );
 
-  await writeFile("metacritic-game.html", await page.content());
+    if (await report.count()) {
+      console.log("\nREPORT HTML:\n");
 
-  await page.screenshot({
-    path: "metacritic-game.png",
-    fullPage: true,
-  });
+      const reportHtml = await report.evaluate(
+        (element: HTMLElement) => {
+          let current: HTMLElement | null =
+            element.parentElement;
 
-  await browser.close();
+          const output: string[] = [];
+
+          for (
+            let i = 0;
+            i < 6 && current;
+            i++
+          ) {
+            output.push(
+              `\n--- LEVEL ${i} ---\n` +
+                current.outerHTML.slice(
+                  0,
+                  10000,
+                ),
+            );
+
+            current = current.parentElement;
+          }
+
+          return output.join("\n");
+        },
+      );
+
+      console.log(reportHtml);
+    }
+
+    const text = await page
+      .locator("body")
+      .innerText();
+
+    console.log("\n--- PAGE TEXT ---\n");
+    console.log(text.slice(0, 12000));
+
+    await writeFile(
+      "metacritic-game.html",
+      await page.content(),
+    );
+
+    await page.screenshot({
+      path: "metacritic-game.png",
+      fullPage: true,
+    });
+
+    console.log(
+      "\nSaved metacritic-game.html",
+    );
+
+    console.log(
+      "Saved metacritic-game.png",
+    );
+  } finally {
+    await browser.close();
+  }
 }
 
 main().catch((error) => {
