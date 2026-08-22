@@ -5,6 +5,8 @@ import {
 
 import { saveScrapedGame } from "@/entities/game/api/game.repository";
 
+import { generateSummary } from "@/shared/lib/openai";
+
 async function main() {
   const browser = await createMetacriticBrowser();
 
@@ -14,19 +16,6 @@ async function main() {
       "https://www.metacritic.com/game/mortal-shell-ii/",
     );
 
-    const saved = await saveScrapedGame({
-      name: scraped.name,
-      slug: scraped.slug,
-      coverImage: scraped.coverImage,
-      developer: scraped.developer,
-      description: scraped.description,
-      videoUrl: scraped.videoUrl,
-      platforms: scraped.platforms,
-    });
-
-    console.log("\nSaved game:");
-    console.dir(saved, { depth: null });
-
     console.log(
       `\nCritic reviews available: ${scraped.criticReviews.length}`,
     );
@@ -34,6 +23,27 @@ async function main() {
     console.log(
       `User reviews available: ${scraped.userReviews.length}`,
     );
+
+    const criticSummary = await generateSummary(
+      scraped.criticReviews.map((review) => review.text),
+    );
+
+    console.log("\nGenerated critic summary:");
+    console.log(criticSummary);
+
+    const saved = await saveScrapedGame({
+      name: scraped.name,
+      slug: scraped.slug,
+      coverImage: scraped.coverImage,
+      developer: scraped.developer,
+      description: scraped.description,
+      videoUrl: scraped.videoUrl,
+      criticSummary,
+      platforms: scraped.platforms,
+    });
+
+    console.log("\nSaved game:");
+    console.dir(saved, { depth: null });
   } finally {
     await browser.close();
   }

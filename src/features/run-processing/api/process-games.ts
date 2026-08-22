@@ -7,12 +7,45 @@ import { getNewReleaseGames } from "@/entities/game/api/metacritic.releases";
 
 import { saveScrapedGame } from "@/entities/game/api/game.repository";
 
-import { withRetry } from "@/shared/lib/with-retry";
+import { generateSummary } from "@/shared/lib/openai";
 
 import {
   startProcessing,
   finishProcessing,
 } from "./processing.repository";
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  {
+    retries = 3,
+    delayMs = 2000,
+    onError,
+  }: {
+    retries?: number;
+    delayMs?: number;
+    onError?: (error: unknown, attempt: number) => void;
+  } = {},
+): Promise<T> {
+  const attempt = async (n: number): Promise<T> => {
+    try {
+      return await fn();
+    } catch (error) {
+      onError?.(error, n);
+
+      if (n >= retries) {
+        throw error;
+      }
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, n * delayMs),
+      );
+
+      return attempt(n + 1);
+    }
+  };
+
+  return attempt(1);
+}
 
 export async function processGames() {
   const processingId = await startProcessing();
@@ -44,15 +77,20 @@ export async function processGames() {
           },
         );
 
-        await saveScrapedGame({
-          name: game.name,
-          slug: game.slug,
-          coverImage: game.coverImage,
-          developer: game.developer,
-          description: game.description,
-          videoUrl: game.videoUrl,
-          platforms: game.platforms,
-        });
+        const criticSummary = await generateSummary(
+  game.criticReviews.map((review) => review.text),
+);
+
+await saveScrapedGame({
+  name: game.name,
+  slug: game.slug,
+  coverImage: game.coverImage,
+  developer: game.developer,
+  description: game.description,
+  videoUrl: game.videoUrl,
+  criticSummary,
+  platforms: game.platforms,
+});
 
         gamesProcessed++;
 
