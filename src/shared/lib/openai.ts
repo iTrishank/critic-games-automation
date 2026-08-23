@@ -6,17 +6,25 @@ dotenv.config({
 
 import OpenAI from "openai";
 
-const apiKey = process.env.OPENAI_API_KEY;
+let openai: OpenAI | null = null;
 
-if (!apiKey) {
-  throw new Error(
-    "OPENAI_API_KEY is not configured.",
-  );
+function getOpenAI(): OpenAI {
+  if (!openai) {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      throw new Error(
+        "OPENAI_API_KEY is not configured.",
+      );
+    }
+
+    openai = new OpenAI({
+      apiKey,
+    });
+  }
+
+  return openai;
 }
-
-const openai = new OpenAI({
-  apiKey,
-});
 
 type SummaryType = "critic" | "user";
 
@@ -72,11 +80,10 @@ User Reviews:
 ${reviewText}
 `;
 
-  const response =
-    await openai.responses.create({
-      model: "gpt-5-mini",
-      input: prompt,
-    });
+  const response = await getOpenAI().responses.create({
+    model: "gpt-5-mini",
+    input: prompt,
+  });
 
   return (
     response.output_text.trim() ||
