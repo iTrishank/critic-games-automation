@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { SimilarGames } from "@/widgets/similar-games/ui/similar-games";
+
 type Game = {
   id: number;
   name: string;
@@ -20,6 +22,13 @@ type GameDetailsPageProps = {
   slug: string;
 };
 
+type SimilarGame = {
+  id: number;
+  name: string;
+  slug: string;
+  coverImage: string | null;
+};
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("en-GB", {
     day: "2-digit",
@@ -30,9 +39,9 @@ function formatDate(value: string) {
 
 export function GameDetailsPage({ slug }: GameDetailsPageProps) {
   const [game, setGame] = useState<Game | null>(null);
+  const [similarGames, setSimilarGames] = useState<SimilarGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   useEffect(() => {
     async function loadGame() {
       try {
@@ -45,6 +54,12 @@ export function GameDetailsPage({ slug }: GameDetailsPageProps) {
         const data = (await response.json()) as Game;
 
         setGame(data);
+        const similarResponse = await fetch(`/api/games/${slug}/similar`);
+
+        if (similarResponse.ok) {
+          const similarData = (await similarResponse.json()) as SimilarGame[];
+          setSimilarGames(similarData);
+        }
       } catch (error) {
         setError(error instanceof Error ? error.message : "Failed to load game");
       } finally {
@@ -140,6 +155,7 @@ export function GameDetailsPage({ slug }: GameDetailsPageProps) {
             </div>
           </div>
         </section>
+        <SimilarGames games={similarGames} />
       </div>
     </main>
   );

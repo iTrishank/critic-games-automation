@@ -209,7 +209,7 @@ async function scrapeCriticReviews(
   try {
     await page.goto(criticUrl, {
       waitUntil: "domcontentloaded",
-      timeout: 30000,
+      timeout: 60000,
     });
 
     await page.waitForTimeout(1000);

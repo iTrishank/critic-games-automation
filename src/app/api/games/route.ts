@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { desc} from "drizzle-orm";
 
 import { db } from "@/shared/db";
-import { gamePlatforms, games } from "@/shared/db/schema";
+import {
+  gamePlatforms,
+  games,
+  processingHistory,
+} from "@/shared/db/schema";
 
 export async function GET() {
   try {
@@ -33,6 +37,29 @@ export async function GET() {
     return NextResponse.json(
       {
         error: "Failed to fetch games",
+      },
+      {
+        status: 500,
+      },
+    );
+  }
+}
+
+export async function DELETE() {
+  try {
+    await db.delete(gamePlatforms);
+    await db.delete(games);
+    await db.delete(processingHistory);
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error("Failed to reset database:", error);
+
+    return NextResponse.json(
+      {
+        error: "Failed to reset database",
       },
       {
         status: 500,

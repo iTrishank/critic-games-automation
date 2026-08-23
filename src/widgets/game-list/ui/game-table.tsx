@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+//import type { ReactNode } from "react";
 
 type Game = {
   id: number;
@@ -35,13 +35,27 @@ function formatDate(value: string | Date) {
   });
 }
 
-function Status({ children }: { children: ReactNode }) {
-  return <span className="inline-flex items-center rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-xs text-zinc-300">{children}</span>;
+// function Status({ children }: { children: ReactNode }) {
+//   return <span className="inline-flex items-center rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5 text-xs text-zinc-300">{children}</span>;
+// }
+
+function formatMetascores(platforms: Game["platforms"]) {
+  return platforms
+    .filter((item) => item.metascore !== null)
+    .map((item) => `${item.platform} ${item.metascore}`)
+    .join(" · ");
+}
+
+function formatUserscores(platforms: Game["platforms"]) {
+  return platforms
+    .filter((item) => item.userscore !== null)
+    .map((item) => `${item.platform} ${item.userscore}`)
+    .join(" · ");
 }
 
 export function GameTable({ games }: GameTableProps) {
   return (
-    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+    <div className="overflow-hidden rounded-lg border border-zinc-800 bg-[#09090b]">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="border-b border-zinc-800 bg-zinc-900 text-left text-xs uppercase tracking-wide text-zinc-500">
@@ -77,9 +91,9 @@ export function GameTable({ games }: GameTableProps) {
 
               <td className="px-4 py-3 text-zinc-400">{game.developer ?? "—"}</td>
 
-              <td className="px-4 py-3">{game.criticSummary ? <Status>Available</Status> : <span className="text-zinc-700">—</span>}</td>
+              <td className="px-4 py-3 font-mono text-xs text-zinc-400">{formatMetascores(game.platforms) || <span className="text-zinc-700">—</span>}</td>
 
-              <td className="px-4 py-3">{game.userSummary ? <Status>Available</Status> : <span className="text-zinc-700">—</span>}</td>
+              <td className="px-4 py-3 font-mono text-xs text-zinc-400">{formatUserscores(game.platforms) || <span className="text-zinc-700">—</span>}</td>
 
               <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-zinc-500">{formatDate(game.createdAt)}</td>
 
