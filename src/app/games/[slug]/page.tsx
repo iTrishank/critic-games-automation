@@ -1,4 +1,4 @@
-import { GameDetailsPage } from "@/pages/game-details/ui/game-details-page";
+import { GameDetailsPage } from "@/features/game-details/ui/game-details-page";
 
 type GameDetailsRouteProps = {
   params: Promise<{

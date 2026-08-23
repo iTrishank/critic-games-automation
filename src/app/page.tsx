@@ -1,4 +1,4 @@
-import { GamesPage } from "@/pages/games/ui/games-page";
+import { GamesPage } from "@/features/games/ui/games-page";
 
 export default function Home() {
   return <GamesPage />;

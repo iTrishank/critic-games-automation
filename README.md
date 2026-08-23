@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# JOB_metacritic
 
-## Getting Started
+Automation pipeline: scrapes Metacritic new-release games, stores them in MySQL, summarizes reviews with OpenAI, and serves the result through a Next.js UI. Runs hourly via scheduler or on-demand via a "Run Now" button — both call the same processing function.
 
-First, run the development server:
+## Stack
+
+Next.js · React · TypeScript · Tailwind CSS · shadcn/ui · Feature-Sliced Design · Playwright · MySQL · Drizzle ORM · OpenAI API
+
+## Features
+
+- Playwright scraper for Metacritic (New Releases + SEE ALL/New pagination)
+- Daily batch selection with dedup (upsert by `metacritic_id`, no duplicate rows)
+- Multi-platform score tracking per game
+- Separate AI-generated critic/user review summaries
+- Hourly scheduler + manual "Run Now" trigger (shared entrypoint)
+- Games list with search, platform filter, rating sort
+- Game details page with similar-games recommendations
+- Processing history / status tracking
+
+## Prerequisites
+
+- Node.js 18+
+- MySQL instance
+- OpenAI API key
+
+## Setup
+
+```bash
+git clone <repo-url>
+cd job-metacritic
+npm install
+cp .env.example .env.local
+```
+
+Fill in `.env.local`:
+
+```env
+DATABASE_URL=mysql://user:password@localhost:3306/metacritic
+OPENAI_API_KEY=sk-...
+```
+
+Run migrations:
+
+```bash
+npx drizzle-kit push
+```
+
+## Running
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Trigger a processing run manually (no need to wait for the hourly scheduler):
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+curl -X POST http://localhost:3000/api/process
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+or use the **Run Now** button in the UI.
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```text
+src/
+├── app/        # Next.js routes + API (games, process, processing-status)
+├── pages/      # games/, game-details/
+├── widgets/    # game-grid, game-card, game-details, similar-games, processing-status
+├── features/   # search-games, filter-games, sort-games, run-processing
+├── entities/   # game/ (types, queries, domain model)
+└── shared/     # db, lib, ui, config, types
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+GET  /api/games
+GET  /api/games/:id
+POST /api/process
+GET  /api/processing-status
+```
 
-## Deploy on Vercel
+## Notes
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Scraper → normalized `ScrapedGame` → DB upsert → review scrape → OpenAI summary → save. No single giant transaction; OpenAI calls run outside the DB transaction.
+- Missing reviews are stored as `"No reviews available"` rather than failing the game.
+- Out of scope by design: auth, payments, microservices, Redis, Kubernetes, message queues, AI agents.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT
