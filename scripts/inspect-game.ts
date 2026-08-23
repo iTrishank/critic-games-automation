@@ -3,8 +3,7 @@ import { writeFile } from "node:fs/promises";
 
 async function main() {
   const browser = await chromium.launch({
-    channel: "chrome",
-    headless: false,
+    headless: true,
   });
 
   const page = await browser.newPage();

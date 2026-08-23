@@ -5,8 +5,7 @@ const GAME_URL =
 
 async function main() {
   const browser = await chromium.launch({
-    channel: "chrome",
-    headless: false,
+    headless: true,
   });
 
   try {
