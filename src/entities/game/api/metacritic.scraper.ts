@@ -440,8 +440,7 @@ async function scrapeUserReviews(
 
 export async function createMetacriticBrowser(): Promise<Browser> {
   return chromium.launch({
-    channel: "chrome",
-    headless: false,
+    headless: true,
   });
 }
 

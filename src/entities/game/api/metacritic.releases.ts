@@ -14,8 +14,7 @@ export async function getNewReleaseGames(
   limit = 20,
 ): Promise<NewReleaseGame[]> {
   const browser = await chromium.launch({
-    channel: "chrome",
-    headless: false,
+    headless: true,
   });
 
   try {
