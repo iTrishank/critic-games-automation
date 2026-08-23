@@ -1,9 +1,9 @@
-import { db } from "@/shared/db";
+import { getDb } from "@/shared/db";
 import { games, gamePlatforms } from "@/shared/db/schema";
 import { eq, ne } from "drizzle-orm";
 
 export async function getSimilarGames(gameId: number) {
-  const currentPlatforms = await db
+  const currentPlatforms = await getDb()
     .select()
     .from(gamePlatforms)
     .where(eq(gamePlatforms.gameId, gameId));
@@ -14,12 +14,12 @@ export async function getSimilarGames(gameId: number) {
     return [];
   }
 
-  const allGames = await db
+  const allGames = await getDb()
     .select()
     .from(games)
     .where(ne(games.id, gameId));
 
-  const allPlatforms = await db
+  const allPlatforms = await getDb()
     .select()
     .from(gamePlatforms);
 

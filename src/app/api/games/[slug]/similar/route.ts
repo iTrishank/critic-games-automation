@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 
-import { db } from "@/shared/db";
+import { getDb } from "@/shared/db";
 import { gamePlatforms, games } from "@/shared/db/schema";
 import { eq, ne } from "drizzle-orm";
 
@@ -14,7 +14,7 @@ export async function GET(_: Request, { params }: Params) {
   try {
     const { slug } = await params;
 
-    const currentGame = await db
+    const currentGame = await getDb()
       .select()
       .from(games)
       .where(eq(games.slug, slug))
@@ -27,7 +27,7 @@ export async function GET(_: Request, { params }: Params) {
       );
     }
 
-    const currentPlatforms = await db
+    const currentPlatforms = await getDb()
       .select()
       .from(gamePlatforms)
       .where(eq(gamePlatforms.gameId, currentGame[0].id));
@@ -40,12 +40,12 @@ export async function GET(_: Request, { params }: Params) {
       return NextResponse.json([]);
     }
 
-    const otherGames = await db
+    const otherGames = await getDb()
       .select()
       .from(games)
       .where(ne(games.id, currentGame[0].id));
 
-    const otherPlatforms = await db
+    const otherPlatforms = await getDb()
       .select()
       .from(gamePlatforms);
 

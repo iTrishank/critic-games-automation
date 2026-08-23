@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
-import { db } from "@/shared/db";
+import { getDb } from "@/shared/db";
 import { games } from "@/shared/db/schema";
 
 type RouteContext = {
@@ -17,7 +17,7 @@ export async function GET(
   try {
     const { slug } = await params;
 
-    const result = await db
+    const result = await getDb()
       .select()
       .from(games)
       .where(eq(games.slug, slug))

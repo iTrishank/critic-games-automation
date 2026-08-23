@@ -1,16 +1,30 @@
 import { drizzle } from "drizzle-orm/mysql2";
 import mysql from "mysql2/promise";
 
-const databaseUrl = process.env.DATABASE_URL;
+function createDb() {
+  const databaseUrl = process.env.DATABASE_URL;
 
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL is not configured");
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is not configured");
+  }
+
+  const connection = mysql.createPool({
+    uri: databaseUrl,
+    waitForConnections: true,
+    connectionLimit: 10,
+  });
+
+  return drizzle(connection);
 }
 
-const connection = mysql.createPool({
-  uri: databaseUrl,
-  waitForConnections: true,
-  connectionLimit: 10,
-});
+type Db = ReturnType<typeof createDb>;
 
-export const db = drizzle(connection);
+let _db: Db | null = null;
+
+export function getDb(): Db {
+  if (!_db) {
+    _db = createDb();
+  }
+
+  return _db;
+}

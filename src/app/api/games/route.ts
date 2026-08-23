@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { desc} from "drizzle-orm";
 
-import { db } from "@/shared/db";
+import { getDb } from "@/shared/db";
 import {
   gamePlatforms,
   games,
@@ -10,12 +10,12 @@ import {
 
 export async function GET() {
   try {
-    const gameRows = await db
+    const gameRows = await getDb()
       .select()
       .from(games)
       .orderBy(desc(games.updatedAt));
 
-    const platformRows = await db
+    const platformRows = await getDb()
       .select()
       .from(gamePlatforms);
 
@@ -47,9 +47,9 @@ export async function GET() {
 
 export async function DELETE() {
   try {
-    await db.delete(gamePlatforms);
-    await db.delete(games);
-    await db.delete(processingHistory);
+    await getDb().delete(gamePlatforms);
+    await getDb().delete(games);
+    await getDb().delete(processingHistory);
 
     return NextResponse.json({
       success: true,

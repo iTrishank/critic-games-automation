@@ -1,14 +1,16 @@
 import { desc, eq } from "drizzle-orm";
 
-import { db } from "@/shared/db";
+import { getDb } from "@/shared/db";
 import { processingHistory } from "@/shared/db/schema";
 
 export async function startProcessing() {
-  const result = await db.insert(processingHistory).values({
-    status: "running",
-    gamesFound: 0,
-    gamesProcessed: 0,
-  });
+  const result = await getDb()
+    .insert(processingHistory)
+    .values({
+      status: "running",
+      gamesFound: 0,
+      gamesProcessed: 0,
+    });
 
   return result[0].insertId;
 }
@@ -22,7 +24,7 @@ export async function finishProcessing(
     error?: string;
   },
 ) {
-  await db
+  await getDb()
     .update(processingHistory)
     .set({
       status: data.status,
@@ -35,7 +37,7 @@ export async function finishProcessing(
 }
 
 export async function getLatestProcessing() {
-  const result = await db
+  const result = await getDb()
     .select()
     .from(processingHistory)
     .orderBy(desc(processingHistory.id))

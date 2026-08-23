@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { db } from "@/shared/db";
+import { getDb } from "@/shared/db";
 import {
   gamePlatforms,
   games,
@@ -25,7 +25,7 @@ export type SaveGameData = {
 export async function saveScrapedGame(
   data: SaveGameData,
 ) {
-  return db.transaction(async (tx) => {
+  return getDb().transaction(async (tx) => {
     const existing = await tx
       .select()
       .from(games)
@@ -46,8 +46,8 @@ export async function saveScrapedGame(
           description: data.description,
           videoUrl: data.videoUrl,
           criticSummary: data.criticSummary,
-userSummary:
-  data.userSummary ?? existing[0].userSummary,
+          userSummary:
+            data.userSummary ?? existing[0].userSummary,
         })
         .where(eq(games.id, gameId));
     } else {
